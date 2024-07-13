@@ -6,6 +6,8 @@ enum Token {
     Start(String),
     Print(String),
     Call(String),
+    SetS(String, String),
+    SetD(String, i32),
 }
 
 fn get_args(min: usize) -> Option<Vec<String>> {
@@ -18,6 +20,7 @@ fn get_args(min: usize) -> Option<Vec<String>> {
 
 fn gen_python_code(instruction: Vec<Token>) -> String {
     let mut in_func: bool = false;
+    let mut var_db: Vec<(String, String)> = Vec::new();
     let mut ret: String = String::new();
     for idx in 0..instruction.len() {
         match &instruction[idx] {
@@ -26,10 +29,20 @@ fn gen_python_code(instruction: Vec<Token>) -> String {
                 in_func = true;
             },
             Token::Print(v) => {
+                let mut found:bool = false;
                 if in_func {
                     ret.push_str(&format!("\t"));
                 }
-                ret.push_str(&format!("print(\"{}\")\n", v));
+                for idx in 0..var_db.len() {
+                    let current_key: String = var_db[idx].0.clone();
+                    if *v == current_key {
+                        found = true;
+                        ret.push_str(&format!("print({})\n", current_key));
+                    }
+                }
+                if !found {
+                    ret.push_str(&format!("print(\"{}\")\n", v));
+                }
             }
             Token::Done => {
                 in_func = false;
@@ -40,6 +53,21 @@ fn gen_python_code(instruction: Vec<Token>) -> String {
                 }
                 ret.push_str(&format!("{}\n", v));
             }
+            Token::SetD(k, v) => {
+                if in_func {
+                    ret.push_str(&format!("\t"));
+                }
+                ret.push_str(&format!("{} = {}\n", k, v));
+                var_db.push((k.clone(), v.to_string()));
+            }
+            Token::SetS(k, v) => {
+                if in_func {
+                    ret.push_str(&format!("\t"));
+                }
+                ret.push_str(&format!("{} = \"{}\"\n", k, v));
+                var_db.push((k.clone(), v.to_string()));
+            }
+            _ => {}
         }
     }
     return ret;
@@ -54,6 +82,7 @@ fn parse(content: &str) -> Vec<Token>{
     let mut token: Token;
     'outer: while cursor < content_array.len() {
         builder.push_str(&content_array[cursor].to_string());
+
         // start
         let current_keyword: &str = "wiwitan";
         if builder.contains(current_keyword) {
@@ -91,6 +120,74 @@ fn parse(content: &str) -> Vec<Token>{
 
             }
             token = Token::Print(builder.clone().trim().replace("\"", "").to_string());
+            instruction.push(token);
+            builder = "".to_string();
+            continue 'outer;
+        }
+
+        // define var 
+        let current_keyword: &str = "netapake";
+        if builder.contains(current_keyword) {
+            builder = "".to_string();
+            cursor += 2;
+            for _ in 0..10 {
+                if content_array[cursor] != ' ' {
+                    builder.push_str(&content_array[cursor].to_string());
+                } else {
+                    break;
+                }
+                cursor += 1;
+
+            }
+            if builder.contains("angka") {
+                builder = "".to_string();
+                for _ in 0..128 {
+                    if content_array[cursor] != '=' {
+                        builder.push_str(&content_array[cursor].to_string());
+                    } else {
+                        break;
+                    }
+                    cursor += 1;
+
+                }
+                let mut value: String = "".to_string();
+                cursor += 1;
+                for _ in 0..128 {
+                    if content_array[cursor] != ';' {
+                        value.push_str(&content_array[cursor].to_string());
+                    } else {
+                        break;
+                    }
+                    cursor += 1;
+
+                }
+                token = Token::SetD(builder.clone().trim().replace("\"", "").to_string(), value.clone().trim().replace("\"", "").to_string().parse::<i32>().unwrap());
+            } else if builder.contains("tembung"){
+                builder = "".to_string();
+                for _ in 0..128 {
+                    if content_array[cursor] != '=' {
+                        builder.push_str(&content_array[cursor].to_string());
+                    } else {
+                        break;
+                    }
+                    cursor += 1;
+
+                }
+                let mut value: String = "".to_string();
+                cursor += 1;
+                for _ in 0..128 {
+                    if content_array[cursor] != ';' {
+                        value.push_str(&content_array[cursor].to_string());
+                    } else {
+                        break;
+                    }
+                    cursor += 1;
+
+                }
+                token = Token::SetS(builder.clone().trim().replace("\"", "").to_string(), value.clone().trim().replace("\"", "").to_string());
+            } else {
+                continue 'outer;
+            }
             instruction.push(token);
             builder = "".to_string();
             continue 'outer;

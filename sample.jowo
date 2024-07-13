@@ -1,5 +1,8 @@
 wiwitan cetak_dunia()
+    netapake angka nuel = 12;
+    netapake tembung komodo = "saya";
     nyetak("punten dunyo")
+    nyetak(nuel)
 mari.
 
 celuk cetak_dunia()
